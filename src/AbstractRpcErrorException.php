@@ -19,7 +19,7 @@ abstract class AbstractRpcErrorException extends \Exception
         -32401 => RpcTokenNotFoundInHeaderException::class,
         -32403 => RpcInvalidTokenException::class,
         -32300 => RpcAsyncRequestException::class,
-        -32301 => RpcInvalidButchRequestExceptions::class,
+        -32301 => RpcInvalidBatchRequestExceptions::class,
         -32000 => RpcDataNotFoundException::class,
     ];
 
@@ -32,6 +32,10 @@ abstract class AbstractRpcErrorException extends \Exception
         parent::__construct($message, $code, $previous);
     }
 
+    /**
+     * @param \Throwable $e
+     * @return static
+     */
     public static function fromThrowable(\Throwable $e): static
     {
         return new static(
@@ -48,20 +52,44 @@ abstract class AbstractRpcErrorException extends \Exception
      */
     public static function fromArray(array $data): static
     {
-        $code = $data['code'] ?? 0;
+        return static::fromCode($data['code'] ?? 0, $data['message'] ?? '');
+    }
+
+     /**
+     * @param string $data {"code"=>-32...}
+     * @return static
+     * @throws WrongWayException
+     */
+    public static function fromJson(string $data): static
+    {
+        return static::fromArray(json_decode($data, true));
+    }
+
+    /**
+     * @param int $code
+     * @param string $message
+     * @return static
+     * @throws WrongWayException
+     */
+    public static function fromCode(int $code, string $message = ''): static
+    {
         if (!isset(static::ERROR_MAPPING[$code])) {
             throw new WrongWayException('Exception mapping no found');
         }
-        return new (static::ERROR_MAPPING[$code])(
-            $data['message'] ?? ''
-        );
+        return new (static::ERROR_MAPPING[$code])($message);
     }
 
+    /**
+     * @return string[]
+     */
     public static function getMapping(): array
     {
         return static::ERROR_MAPPING;
     }
 
+    /**
+     * @return string[]
+     */
     #[Pure]
     public static function getRpcErrorsList(): array
     {
