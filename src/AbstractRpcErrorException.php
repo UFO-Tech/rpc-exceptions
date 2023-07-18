@@ -38,7 +38,10 @@ abstract class AbstractRpcErrorException extends \Exception
      */
     public static function fromThrowable(\Throwable $e): static
     {
-        return new static(
+        if (!isset(static::ERROR_MAPPING[$e->getCode()])) {
+            throw new WrongWayException('Exception mapping no found');
+        }
+        return new (static::ERROR_MAPPING[$e->getCode()])(
             $e->getMessage(),
             $e->getCode(),
             $e
@@ -55,7 +58,7 @@ abstract class AbstractRpcErrorException extends \Exception
         return static::fromCode($data['code'] ?? 0, $data['message'] ?? '');
     }
 
-     /**
+    /**
      * @param string $data {"code"=>-32...}
      * @return static
      * @throws WrongWayException
