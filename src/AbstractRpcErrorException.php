@@ -36,7 +36,7 @@ abstract class AbstractRpcErrorException extends \Exception
      * @param \Throwable $e
      * @return static
      */
-    public static function fromThrowable(\Throwable $e): static
+    public static function fromThrowable(\Throwable $e): AbstractRpcErrorException
     {
         $class = static::ERROR_MAPPING[$e->getCode()] ?? RpcRuntimeException::class;
         return new $class(
@@ -51,7 +51,7 @@ abstract class AbstractRpcErrorException extends \Exception
      * @return static
      * @throws WrongWayException
      */
-    public static function fromArray(array $data): static
+    public static function fromArray(array $data): AbstractRpcErrorException
     {
         return static::fromCode($data['code'] ?? 0, $data['message'] ?? '');
     }
@@ -61,7 +61,7 @@ abstract class AbstractRpcErrorException extends \Exception
      * @return static
      * @throws WrongWayException
      */
-    public static function fromJson(string $data): static
+    public static function fromJson(string $data): AbstractRpcErrorException
     {
         return static::fromArray(json_decode($data, true));
     }
@@ -72,7 +72,7 @@ abstract class AbstractRpcErrorException extends \Exception
      * @return static
      * @throws WrongWayException
      */
-    public static function fromCode(int $code, string $message = ''): static
+    public static function fromCode(int $code, string $message = ''): AbstractRpcErrorException
     {
         if (!isset(static::ERROR_MAPPING[$code])) {
             throw new WrongWayException('Exception mapping no found');
