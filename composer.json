@@ -1,5 +1,6 @@
 {
     "name": "ufo-tech/rpc-exceptions",
+    "version": "1",
     "description": "Exception package RPC server error codes",
     "license": "MIT",
     "authors": [
