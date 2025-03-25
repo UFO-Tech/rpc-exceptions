@@ -75,7 +75,7 @@ abstract class AbstractRpcErrorException extends \Exception
     public static function fromCode(int $code, string $message = ''): AbstractRpcErrorException
     {
         if (!isset(static::ERROR_MAPPING[$code])) {
-            throw new WrongWayException('Exception mapping no found');
+            throw new RpcRuntimeException(sprintf('EMNF (%d): %s', $code, $message));
         }
         return new (static::ERROR_MAPPING[$code])($message);
     }
