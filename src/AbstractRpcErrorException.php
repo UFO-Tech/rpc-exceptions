@@ -36,13 +36,13 @@ abstract class AbstractRpcErrorException extends \Exception
      * @param \Throwable $e
      * @return static
      */
-    public static function fromThrowable(\Throwable $e): AbstractRpcErrorException
+    public static function fromThrowable(\Throwable $e, bool $withPrev = true): AbstractRpcErrorException
     {
         $class = static::ERROR_MAPPING[$e->getCode()] ?? RpcRuntimeException::class;
         return new $class(
             $e->getMessage(),
             $e->getCode(),
-            $e
+            $withPrev ? $e : null
         );
     }
 
