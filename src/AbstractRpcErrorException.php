@@ -16,7 +16,7 @@ abstract class AbstractRpcErrorException extends \Exception
         -32603 => RpcInternalException::class,
         -32500 => RpcRuntimeException::class,
         -32400 => RpcLogicException::class,
-        -32401 => RpcTokenNotFoundInHeaderException::class,
+        -32401 => RpcTokenNotSentException::class,
         -32403 => RpcInvalidTokenException::class,
         -32300 => RpcAsyncRequestException::class,
         -32301 => RpcInvalidBatchRequestExceptions::class,
