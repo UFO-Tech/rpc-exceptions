@@ -23,13 +23,14 @@ The message SHOULD be limited to a concise single sentence.
 | -32601                | Method not found      | The method does not exist / is not available.      |
 | -32602                | Invalid params        | Invalid method parameter(s).                       |
 | -32603                | Internal error        | Internal JSON-RPC error.                           |
-| -32500                | Application error     | Runtime error on procedure.                        |
+| -32500                | Server error          | Runtime error on procedure.                        |
 | -32400                | System error          | Logic error on application.                        |
 | -32401                | Security error        | Token not found                                    |
 | -32403                | Security error        | Invalid token                                      |
+| -32404                | Data error            | Requested data not found                           |
 | -32300                | Async error           | Error transfer async data                          |
 | -32301                | Batch error           | Error batch request                                |
-| -32000                | Server error          | Reserved for implementation-defined server-errors. |
+| -32000                | Application error     | Reserved for implementation-defined server-errors. |
 | from -32001 to -32099 | Custom user exception | ---                                                |
 
 There are many error codes and identifying the error from the code can be a difficult task.
@@ -47,9 +48,10 @@ You can easily get the exception object from the error code.
 | -32400                 |  RpcLogicException::class                 |
 | -32401                 |  RpcTokenNotFoundInHeaderException::class |
 | -32403                 |  RpcInvalidTokenException::class          |
+| -32404                 |  RpcDataNotFoundException::class          |
 | -32300                 |  RpcAsyncRequestException::class          |
 | -32301                 |  RpcInvalidBatchRequestExceptions::class  |
-| -32000                 |  RpcDataNotFoundException::class          |
+| -32000                 |  RpcCustomApplicationException::class     |
 | from -32001 to -32099" | ---                                       |
 
 ## Installation
@@ -107,9 +109,10 @@ $mapping = AbstractRpcErrorException::getRpcErrorsList();
     -32400 => RpcLogicException::class,
     -32401 => RpcTokenNotFoundInHeaderException::class,
     -32403 => RpcInvalidTokenException::class,
+    -32404 => RpcDataNotFoundException::class,
     -32300 => RpcAsyncRequestException::class,
     -32301 => RpcInvalidBatchRequestExceptions::class,
-    -32000 => RpcDataNotFoundException::class,
+    -32000 => RpcCustomApplicationException::class,
 ]
 ```
 

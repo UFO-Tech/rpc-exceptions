@@ -6,9 +6,12 @@ use JetBrains\PhpStorm\Pure;
 
 abstract class AbstractRpcErrorException extends \Exception
 {
-    const DEFAULT_CODE = -32603;
+    const int DEFAULT_CODE = -32603;
+    const int MIN_ERROR_CODE = -32799;
+    const int MAX_ERROR_CODE = -32000;
+    const int ROUNDING_BASE = 100;
 
-    const ERROR_MAPPING = [
+    const array ERROR_MAPPING = [
         -32700 => RpcJsonParseException::class,
         -32600 => RpcBadRequestException::class,
         -32601 => RpcMethodNotFoundExceptionRpc::class,
@@ -18,9 +21,10 @@ abstract class AbstractRpcErrorException extends \Exception
         -32400 => RpcLogicException::class,
         -32401 => RpcTokenNotSentException::class,
         -32403 => RpcInvalidTokenException::class,
+        -32404 => RpcDataNotFoundException::class,
         -32300 => RpcAsyncRequestException::class,
         -32301 => RpcInvalidBatchRequestExceptions::class,
-        -32000 => RpcDataNotFoundException::class,
+        -32000 => RpcCustomApplicationException::class,
     ];
 
     protected $code = self::DEFAULT_CODE;
@@ -34,6 +38,7 @@ abstract class AbstractRpcErrorException extends \Exception
 
     /**
      * @param \Throwable $e
+     * @param bool $withPrev
      * @return static
      */
     public static function fromThrowable(\Throwable $e, bool $withPrev = true): AbstractRpcErrorException
@@ -49,7 +54,7 @@ abstract class AbstractRpcErrorException extends \Exception
     /**
      * @param array $data ['code'=>-32...]
      * @return static
-     * @throws WrongWayException
+     * @throws RpcRuntimeException
      */
     public static function fromArray(array $data): AbstractRpcErrorException
     {
@@ -59,7 +64,7 @@ abstract class AbstractRpcErrorException extends \Exception
     /**
      * @param string $data {"code"=>-32...}
      * @return static
-     * @throws WrongWayException
+     * @throws RpcRuntimeException
      */
     public static function fromJson(string $data): AbstractRpcErrorException
     {
@@ -70,14 +75,28 @@ abstract class AbstractRpcErrorException extends \Exception
      * @param int $code
      * @param string $message
      * @return static
-     * @throws WrongWayException
+     * @throws RpcRuntimeException
      */
     public static function fromCode(int $code, string $message = ''): AbstractRpcErrorException
     {
-        if (!isset(static::ERROR_MAPPING[$code])) {
-            throw new RpcRuntimeException(sprintf('EMNF (%d): %s', $code, $message));
+        if ($code < static::MIN_ERROR_CODE || $code > static::MAX_ERROR_CODE) {
+            throw static::createFallbackException($code, $message);
         }
-        return new (static::ERROR_MAPPING[$code])($message);
+
+        $exceptionClass = static::ERROR_MAPPING[$code]
+            ?? static::ERROR_MAPPING[(int) (ceil($code / static::ROUNDING_BASE) * static::ROUNDING_BASE)]
+            ?? null;
+
+        if ($exceptionClass === null) {
+            throw static::createFallbackException($code, $message);
+        }
+
+        return new $exceptionClass($message, $code);
+    }
+
+    protected static function createFallbackException(int $code, string $message): RpcRuntimeException
+    {
+        return new RpcRuntimeException(sprintf('EMNF (%d): %s', $code, $message), $code);
     }
 
     /**
