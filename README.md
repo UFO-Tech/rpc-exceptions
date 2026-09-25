@@ -8,112 +8,128 @@
 ## Problem
 When a rpc call encounters an error, the Response Object MUST contain the error member with a value that is a Object with the following members:
 
-- **code**:
-A Number that indicates the error type that occurred.
-This MUST be an integer.
-
-- **message**:
-A String providing a short description of the error.
-The message SHOULD be limited to a concise single sentence.
-
-| Code                  | Type error            | Summary                                            |
-|-----------------------|-----------------------|----------------------------------------------------|
-| -32700                | Parse error           | Invalid JSON was received by the server            |
-| -32600                | Invalid Request       | The JSON sent is not a valid Request object.       |
-| -32601                | Method not found      | The method does not exist / is not available.      |
-| -32602                | Invalid params        | Invalid method parameter(s).                       |
-| -32603                | Internal error        | Internal JSON-RPC error.                           |
-| -32500                | Server error          | Runtime error on procedure.                        |
-| -32400                | System error          | Logic error on application.                        |
-| -32401                | Security error        | Token not found                                    |
-| -32403                | Security error        | Invalid token                                      |
-| -32404                | Data error            | Requested data not found                           |
-| -32300                | Async error           | Error transfer async data                          |
-| -32301                | Batch error           | Error batch request                                |
-| -32000                | Application error     | Reserved for implementation-defined server-errors. |
-| from -32001 to -32099 | Custom user exception | ---                                                |
-
-There are many error codes and identifying the error from the code can be a difficult task.
-This library will help you.
-You can easily get the exception object from the error code.
-
-| Code                   | Exception class                           |
-|------------------------|-------------------------------------------|
-| -32700                 |  RpcJsonParseException::class             |
-| -32600                 |  RpcBadRequestException::class            |
-| -32601                 |  RpcMethodNotFoundExceptionRpc::class     |
-| -32602                 |  RpcBadParamException::class              |
-| -32603                 |  RpcInternalException::class              |
-| -32500                 |  RpcRuntimeException::class               |
-| -32400                 |  RpcLogicException::class                 |
-| -32401                 |  RpcTokenNotFoundInHeaderException::class |
-| -32403                 |  RpcInvalidTokenException::class          |
-| -32404                 |  RpcDataNotFoundException::class          |
-| -32300                 |  RpcAsyncRequestException::class          |
-| -32301                 |  RpcInvalidBatchRequestExceptions::class  |
-| -32000                 |  RpcCustomApplicationException::class     |
-| from -32001 to -32099" | ---                                       |
-
 ## Installation
 
+Requires PHP 8.4 or newer.
+
 ```console
-$ composer require ufo-tech/rpc-exceptions
+composer require ufo-tech/rpc-exceptions
 ```
 
-## Get exception object
-### From code
+## Error codes
+
+| Code | Exception | Meaning |
+| --- | --- | --- |
+| `-32700` | `RpcJsonParseException` | Invalid JSON |
+| `-32600` | `RpcBadRequestException` | Invalid request |
+| `-32601` | `RpcMethodNotFoundExceptionRpc` | Unknown method |
+| `-32602` | `RpcBadParamException` | Invalid parameters |
+| `-32603` | `RpcInternalException` | Internal error |
+| `-32500` | `RpcRuntimeException` | Runtime error |
+| `-32400` | `RpcLogicException` | Logic error |
+| `-32401` | `RpcTokenNotSentException` | Missing token |
+| `-32403` | `RpcInvalidTokenException` | Invalid token |
+| `-32404` | `RpcDataNotFoundException` | Data not found |
+| `-32300` | `RpcAsyncRequestException` | Invalid async request |
+| `-32301` | `RpcInvalidBatchRequestExceptions` | Invalid batch |
+| `-32099` to `-32000` | `RpcCustomServerException` | Server error |
+| Outside `-32768` to `-32000` | `CustomApplicationException` | Application error |
+
+For other reserved codes, the nearest hundred usually determines the class: `-32450` resolves to `RpcLogicException`. Codes in `-32299` to `-32100` and `-32768` to `-32701` resolve to `RpcInternalException`. The original code is preserved; `0` uses the default (`-32603` on the base class). Use codes outside the reserved range for application errors.
+
+The standard JSON-RPC codes are `-32700`, `-32600` to `-32603`, and `-32099` to `-32000`. Other reserved codes above are defined by this package.
+
+## Create an exception
+
 ```php
 use Ufo\RpcError\AbstractRpcErrorException;
 
-$code = -32700;
-$message = 'Some custom error message from rpc server'; // optional
-$rpcException = AbstractRpcErrorException::fromCode($code);
-// return instance of RpcJsonParseException::class
+$error = AbstractRpcErrorException::fromCode(-32700);
+$error = AbstractRpcErrorException::fromArray(['code' => -32600, 'message' => 'Invalid request']);
+$error = AbstractRpcErrorException::fromJson('{"code":-32500,"message":"Upstream failed"}');
+$error = AbstractRpcErrorException::fromThrowable(new \RuntimeException('Failed', 500));
 ```
 
-### From array
+`fromCode()` selects a class by code. `fromArray()` and `fromJson()` read an error response; invalid JSON yields `RpcJsonParseException`. `fromThrowable()` creates a new exception and keeps the original as `previous` by default. It needs an integer code; non-numeric codes such as SQLSTATE must be mapped first. Numeric strings are converted to integers.
+
+Call `AbstractRpcErrorException::getMapping()` (or `getRpcErrorsList()`) for the exact mapping.
+
+## Application codes
+
+```php
+use Ufo\RpcError\CustomApplicationException;
+
+throw new CustomApplicationException('Limit reached', 4010);
+```
+
+To resolve your own code to a specific class, extend the mapping and call `fromCode()` on your subclass:
+
 ```php
 use Ufo\RpcError\AbstractRpcErrorException;
+use Ufo\RpcError\IProcedureExceptionInterface;
 
-$data = [
-    'code' = -32600,
-    'message' = 'Some custom error message from rpc server',
-];
-$rpcException = RpcBadRequestException::fromArray($data);
-// return instance of RpcBadRequestException::class
+class UnsupportedProviderException extends AbstractRpcErrorException implements IProcedureExceptionInterface
+{
+    protected $code = -31050;
+    protected $message = 'Unsupported provider';
+}
+
+class MyRpcError extends AbstractRpcErrorException
+{
+    const array ERROR_MAPPING = [
+        -31050 => UnsupportedProviderException::class,
+    ] + parent::ERROR_MAPPING;
+}
+
+MyRpcError::fromCode(-31050); // UnsupportedProviderException
 ```
 
-### From json
+Mapped classes must extend `AbstractRpcErrorException` and accept `(string $message, int $code, ?Throwable $previous)` in their constructor. Entries on the left of `+` take precedence.
+
+## Catch by category
+
+| Interface | Error type |
+| --- | --- |
+| `IUserInputExceptionInterface` | Invalid input, method, parameters, async request or batch |
+| `ISecurityExceptionInterface` | Authentication or authorization failure |
+| `IServerExceptionInterface` | RPC or server failure |
+| `IProcedureExceptionInterface` | Application-defined procedure error |
+
+The category follows the resolved class. `RpcLogicException` and `RpcRuntimeException` are server errors.
+
+## Extra data
+
+Package exceptions carry an optional data bag:
+
 ```php
-use Ufo\RpcError\AbstractRpcErrorException;
-
-$data = "{\"code\":-32500,\"message\":\"Some custom error message from rpc server\"}";
-$rpcException = AbstractRpcErrorException::fromArray($data);
-// return instance of RpcRuntimeException::class
+throw (new RpcBadParamException('Invalid input'))
+    ->pushToData(['field' => 'email', 'attempt' => 3]);
 ```
 
+`changeData()` replaces the bag; `pushToData()` merges into it. Both return the exception. Only scalar values, `null`, and nested arrays are kept. Pass acyclic arrays: circular references can exhaust memory.
 
-## Mapping list
+`fromThrowable()` copies the bag. `fromArray()` and `fromJson()` restore it from `extra` or `data.extra`:
+
 ```php
-use Ufo\RpcError\AbstractRpcErrorException;
-
-$mapping = AbstractRpcErrorException::getRpcErrorsList();
-// return array map
-[
-    -32700 => RpcJsonParseException::class,
-    -32600 => RpcBadRequestException::class,
-    -32601 => RpcMethodNotFoundExceptionRpc::class,
-    -32602 => RpcBadParamException::class,
-    -32603 => RpcInternalException::class,
-    -32500 => RpcRuntimeException::class,
-    -32400 => RpcLogicException::class,
-    -32401 => RpcTokenNotFoundInHeaderException::class,
-    -32403 => RpcInvalidTokenException::class,
-    -32404 => RpcDataNotFoundException::class,
-    -32300 => RpcAsyncRequestException::class,
-    -32301 => RpcInvalidBatchRequestExceptions::class,
-    -32000 => RpcCustomApplicationException::class,
-]
+$restored = AbstractRpcErrorException::fromJson($errorObjectFromTheWire);
+$restored->getExtraData(); // ['field' => 'email', 'attempt' => 3]
 ```
 
-## Profit
+## Error responses
+
+`ExceptionToArrayTransformer` formats a throwable for an RPC response. Only `dev` and `test` include the full dump; other environments include the class and, for package exceptions, `extra`.
+
+```php
+use Ufo\RpcError\ExceptionToArrayTransformer;
+
+$data = (new ExceptionToArrayTransformer($error, 'prod'))->infoByEnvironment();
+```
+
+`getFullInfo()` and `getShortInfo()` select a format directly. Nested `previous` exceptions still use `infoByEnvironment()`. The reported code is preserved when convertible to a nonzero integer; otherwise it falls back to `-32603`.
+
+For constraint errors, `ConstraintsImposedException` extends `-32602` and takes the constraint list as its second argument:
+
+```php
+throw new ConstraintsImposedException('Invalid payload', ['email' => 'NotBlank']);
+```
+

@@ -2,3 +2,4 @@
 /vendor/
 .env
 /bin/tmp.php
+.phpunit.result.cache

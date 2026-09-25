@@ -13,10 +13,8 @@ class ExceptionToArrayTransformer
     protected function getCode(): int
     {
         $code = $this->e->getCode();
-        if (!$this->e instanceof AbstractRpcErrorException) {
-            $code = AbstractRpcErrorException::DEFAULT_CODE;
-        }
-        return $code;
+        $code = is_numeric($code) ? (int) $code : AbstractRpcErrorException::NOT_SET_CODE;
+        return AbstractRpcErrorException::NOT_SET_CODE === $code ? AbstractRpcErrorException::DEFAULT_CODE : $code;
     }
 
     public function getFullInfo(): array
@@ -52,13 +50,22 @@ class ExceptionToArrayTransformer
 
     public function getShortInfo(): array
     {
-        return [
+        $data = [
             'exception' => $this->e::class,
         ];
+
+        if ($this->e instanceof IExceptionWithData) {
+            $data = array_merge($data, ['extra' => $this->e->getExtraData()]);
+        }
+
+        return $data;
     }
 
     public function infoByEnvironment(): array
     {
-        return ($this->env == "dev") ? $this->getFullInfo() : $this->getShortInfo();
+        return match ($this->env) {
+            'dev', 'test' =>  $this->getFullInfo(),
+            default =>  $this->getShortInfo(),
+        };
     }
 }
