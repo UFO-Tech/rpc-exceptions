@@ -36,6 +36,16 @@ final class ExceptionToArrayTransformerTest extends TestCase
         $this->assertSame(['exception' => \RuntimeException::class], $transformer->getShortInfo());
     }
 
+    /** Порожня торба не їде у відповіді — ключа немає зовсім. */
+    public function testEmptyExtraDataIsNotShippedAtAll(): void
+    {
+        $transformer = new ExceptionToArrayTransformer(new RpcBadParamException('param missing'), 'dev');
+
+        $this->assertSame([], $transformer->getShortInfo()['extra'] ?? []);
+        $this->assertArrayNotHasKey('extra', $transformer->getShortInfo());
+        $this->assertArrayNotHasKey('extra', $transformer->getFullInfo());
+    }
+
     public function testFullInfoStructure(): void
     {
         $exception = new RpcDataNotFoundException('nothing here', -32404);
@@ -44,7 +54,7 @@ final class ExceptionToArrayTransformerTest extends TestCase
         $info = $transformer->getFullInfo();
 
         $this->assertSame(
-            ['exception', 'extra', 'message', 'code', 'file', 'line', 'trace', 'trace_string', 'previous'],
+            ['exception', 'message', 'code', 'file', 'line', 'trace', 'trace_string', 'previous'],
             array_keys($info)
         );
         $this->assertSame(RpcDataNotFoundException::class, $info['exception']);
@@ -55,6 +65,20 @@ final class ExceptionToArrayTransformerTest extends TestCase
         $this->assertSame($exception->getTrace(), $info['trace']);
         $this->assertSame($exception->getTraceAsString(), $info['trace_string']);
         $this->assertNull($info['previous']);
+    }
+
+    /** Коли торба непорожня, extra стоїть одразу за іменем класу. */
+    public function testFullInfoStructureWithExtraData(): void
+    {
+        $exception = (new RpcDataNotFoundException('nothing here'))->pushToExtraData(['id' => 7]);
+
+        $info = (new ExceptionToArrayTransformer($exception, 'dev'))->getFullInfo();
+
+        $this->assertSame(
+            ['exception', 'extra', 'message', 'code', 'file', 'line', 'trace', 'trace_string', 'previous'],
+            array_keys($info)
+        );
+        $this->assertSame(['id' => 7], $info['extra']);
     }
 
     public function testRpcExceptionKeepsItsOwnCode(): void
@@ -156,10 +180,7 @@ final class ExceptionToArrayTransformerTest extends TestCase
     {
         $transformer = new ExceptionToArrayTransformer(new RpcInternalException('oops'), $env);
 
-        $this->assertSame(
-            ['exception' => RpcInternalException::class, 'extra' => []],
-            $transformer->infoByEnvironment(),
-        );
+        $this->assertSame(['exception' => RpcInternalException::class], $transformer->infoByEnvironment());
     }
 
     /** Середовище test бачить те саме, що й dev: трейс, файл і рядок. */

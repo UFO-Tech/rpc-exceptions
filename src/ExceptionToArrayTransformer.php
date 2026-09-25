@@ -54,7 +54,7 @@ class ExceptionToArrayTransformer
             'exception' => $this->e::class,
         ];
 
-        if ($this->e instanceof IExceptionWithData) {
+        if ($this->e instanceof IExceptionWithData && !empty($this->e->getExtraData())) {
             $data = array_merge($data, ['extra' => $this->e->getExtraData()]);
         }
 

@@ -103,10 +103,10 @@ Package exceptions carry an optional data bag:
 
 ```php
 throw (new RpcBadParamException('Invalid input'))
-    ->pushToData(['field' => 'email', 'attempt' => 3]);
+    ->pushToExtraData(['field' => 'email', 'attempt' => 3]);
 ```
 
-`changeData()` replaces the bag; `pushToData()` merges into it. Both return the exception. Only scalar values, `null`, and nested arrays are kept. Pass acyclic arrays: circular references can exhaust memory.
+`changeExtraData()` replaces the bag; `pushToExtraData()` merges into it. Both return the exception. Only scalar values, `null`, and nested arrays are kept. Pass acyclic arrays: circular references can exhaust memory.
 
 `fromThrowable()` copies the bag. `fromArray()` and `fromJson()` restore it from `extra` or `data.extra`:
 
@@ -117,7 +117,7 @@ $restored->getExtraData(); // ['field' => 'email', 'attempt' => 3]
 
 ## Error responses
 
-`ExceptionToArrayTransformer` formats a throwable for an RPC response. Only `dev` and `test` include the full dump; other environments include the class and, for package exceptions, `extra`.
+`ExceptionToArrayTransformer` formats a throwable for an RPC response. Only `dev` and `test` include the full dump; other environments include the class alone. The `extra` key appears only when the bag is not empty.
 
 ```php
 use Ufo\RpcError\ExceptionToArrayTransformer;
